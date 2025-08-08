@@ -23,69 +23,34 @@ OP_DO = iota()
 
 #--- Parser ---
 
-def push(x):
-    return OP_PUSH, x
-
-def plus():
-    return OP_PLUS,
-
-def minus():
-    return OP_MINUS,
-
-def equals():
-    return OP_EQUALS,
-
-def dump():
-    return OP_DUMP,
-
-def iff():
-    return OP_IF,
-
-def elze():
-    return OP_ELSE,
-
-def end():
-    return OP_END,
-
-def dup():
-    return OP_DUP,
-
-def greater():
-    return OP_GREATER,
-
-def wile():
-    return OP_WHILE,
-
-def do():
-    return OP_DO,
-
 def parse_token(token):
     file_path, row, col, word = token
+    loc = file_path, row + 1, col + 1
     if word == "+":
-        return plus()
+        return {"type": OP_PLUS, "loc": loc}
     elif word == "-":
-        return minus()
+        return {"type": OP_MINUS, "loc": loc}
     elif word == ".":
-        return dump()
+        return {"type": OP_DUMP, "loc": loc}
     elif word == "=":
-        return equals()
+        return {"type": OP_EQUALS, "loc": loc}
     elif word == "if":
-        return iff()
+        return {"type": OP_IF, "loc": loc}
     elif word == "else":
-        return elze()
+        return {"type": OP_ELSE, "loc": loc}
     elif word == "end":
-        return end()
+        return {"type": OP_END, "loc": loc}
     elif word == "dup":
-        return dup()
+        return {"type": OP_DUP, "loc": loc}
     elif word == ">":
-        return greater()
+        return {"type": OP_GREATER, "loc": loc}
     elif word == "while":
-        return wile()
+        return {"type": OP_WHILE, "loc": loc}
     elif word == "do":
-        return do()
+        return {"type": OP_DO, "loc": loc}
     else:
         try:
-            return push(int(word))
+            return {"type": OP_PUSH, "value": int(word), "loc": loc}
         except ValueError as err:
             print("%s:%d:%d: %s" % (file_path, row, col, err))
             exit(1)
@@ -94,29 +59,32 @@ def cross_reference_blocks(program):
     stack = []
     for ip in range(len(program)):
         op = program[ip]
-        if op[0] == OP_IF:
+        if op["type"] == OP_IF:
             stack.append(ip)
-        elif op[0] == OP_ELSE:
+        elif op["type"] == OP_ELSE:
             if_ip = stack.pop()
-            assert program[if_ip][0] == OP_IF, "`else` can only be used in `if`-blocks"
-            program[if_ip] = OP_IF, ip + 1
+            if program[if_ip]["type"] != OP_IF:
+                print("`else` can only be used in `if`-blocks")
+                exit(1)
+            program[if_ip]["jmp"] = ip + 1
             stack.append(ip)
-        elif op[0] == OP_END:
+        elif op["type"] == OP_END:
             block_ip = stack.pop()
-            if program[block_ip][0] == OP_IF or program[block_ip][0] == OP_ELSE:
-                program[block_ip] = program[block_ip][0], ip
-                program[ip] = OP_END, ip + 1
-            elif program[block_ip][0] == OP_DO:
+            if program[block_ip]["type"] == OP_IF or program[block_ip]["type"] == OP_ELSE:
+                program[block_ip]["jmp"] = ip
+                program[ip]["jmp"] = ip + 1
+            elif program[block_ip]["type"] == OP_DO:
                 assert len(program[block_ip]) >= 2, "..."
-                program[ip] = OP_END, program[block_ip][1]
-                program[block_ip] = OP_DO, ip + 1
+                program[ip]["jmp"] = program[block_ip]["jmp"]
+                program[block_ip]["jmp"] = ip + 1
             else:
-                assert False, "´end´ can only close `if`, `else` or `do` blocks for now"
-        elif op[0] == OP_WHILE:
+                print("´end´ can only close `if`, `else` or `do` blocks for now")
+                exit(1)
+        elif op["type"] == OP_WHILE:
             stack.append(ip)
-        elif op[0] == OP_DO:
+        elif op["type"] == OP_DO:
             while_ip = stack.pop()
-            program[ip] = OP_DO, while_ip
+            program[ip]["jmp"] = while_ip
             stack.append(ip)
     print(program)
     return program
@@ -149,60 +117,50 @@ def simulate_program(program):
     ip = 0
     while ip < len(program):
         op = program[ip]
-        if op[0] == OP_PUSH:
-            stack.append(op[1])
-            ip += 1
-        elif op[0] == OP_PLUS:
+        ip += 1
+        if op["type"] == OP_PUSH:
+            stack.append(op["value"])
+        elif op["type"] == OP_PLUS:
             a = stack.pop()
             b = stack.pop()
             stack.append(a + b)
-            ip += 1
-        elif op[0] == OP_MINUS:
+        elif op["type"] == OP_MINUS:
             a = stack.pop()
             b = stack.pop()
             stack.append(b - a)
-            ip += 1
-        elif op[0] == OP_DUMP:
+        elif op["type"] == OP_DUMP:
             a = stack.pop()
             print(a)
-            ip += 1
-        elif op[0] == OP_EQUALS:
+        elif op["type"] == OP_EQUALS:
             a = stack.pop()
             b = stack.pop()
             stack.append(int(a == b))
-            ip += 1
-        elif op[0] == OP_IF:
+        elif op["type"] == OP_IF:
             a = stack.pop()
             if a == 0:
-                assert len(op) >= 2, "`if` instruction..."
-                ip = op[1]
-            else:
-                ip += 1
-        elif op[0] == OP_ELSE:
-            assert len(op) >= 2, "`else` instruction..."
-            ip = op[1]
-        elif op[0] == OP_END:
-            assert len(op) >= 2, "`end` instruction..."
-            ip = op[1]
-        elif op[0] == OP_DUP:
+                assert len(op) >= 2, "`if` instruction expects a ´jmp´-Feld"
+                ip = op["jmp"]
+        elif op["type"] == OP_ELSE:
+            assert len(op) >= 2, "`else` instruction expects a ´jmp´-Feld"
+            ip = op["jmp"]
+        elif op["type"] == OP_END:
+            assert len(op) >= 2, "`end` instruction expects a ´jmp´-Feld"
+            ip = op["jmp"]
+        elif op["type"] == OP_DUP:
             a = stack.pop()
             stack.append(a)
             stack.append(a)
-            ip += 1
-        elif op[0] == OP_GREATER:
+        elif op["type"] == OP_GREATER:
             a = stack.pop()
             b = stack.pop()
             stack.append(int(b > a))
-            ip += 1
-        elif op[0] == OP_WHILE:
-            ip += 1
-        elif op[0] == OP_DO:
+        elif op["type"] == OP_WHILE:
+            pass
+        elif op["type"] == OP_DO:
             a = stack.pop()
             if a == 0:
                 assert len(op) >= 2, "`do` instruction..."
-                ip = op[1]
-            else:
-                ip += 1
+                ip = op["jmp"]
         else:
             assert False, "unreachable"
 
