@@ -138,7 +138,7 @@ def lex_line(line):
 def lex_file(file_path):
     with open(file_path, "r") as f:
         for (row, line) in enumerate(f.readlines()):
-            for (col, token) in lex_line(line):
+            for (col, token) in lex_line(line.split("//")[0]):
                 yield file_path, row, col, token
 
 def load_program(file_path):
