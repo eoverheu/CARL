@@ -1,18 +1,7 @@
-10 while dup 0 > do  // hello
-    dup 5 = if
-        dup .
-    else
-        0 .
-    end
-    1 -
-end
+mem 0 + 97 .
+mem 1 + 98 .
+mem 2 + 99 .
 
-7 8 + 15 = if
-    1 if
-        6969 .
-    else
-        42 .
-    end
-else
-    0 .
-end
+mem 0 + dup , 1 + .
+mem 1 + dup , 1 + .
+mem 2 + dup , 1 + .

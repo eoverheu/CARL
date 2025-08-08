@@ -20,6 +20,11 @@ OP_DUP = iota()
 OP_GREATER = iota()
 OP_WHILE = iota()
 OP_DO = iota()
+OP_MEM = iota()
+OP_LOAD = iota()
+OP_STORE = iota()
+
+MEM_CAPACITY = 640000  # should be enough for everyone
 
 #--- Parser ---
 
@@ -30,7 +35,7 @@ def parse_token(token):
         return {"type": OP_PLUS, "loc": loc}
     elif word == "-":
         return {"type": OP_MINUS, "loc": loc}
-    elif word == ".":
+    elif word == "dump":
         return {"type": OP_DUMP, "loc": loc}
     elif word == "=":
         return {"type": OP_EQUALS, "loc": loc}
@@ -48,6 +53,12 @@ def parse_token(token):
         return {"type": OP_WHILE, "loc": loc}
     elif word == "do":
         return {"type": OP_DO, "loc": loc}
+    elif word == "mem":
+        return {"type": OP_MEM, "loc": loc}
+    elif word == ",":
+        return {"type": OP_LOAD, "loc": loc}
+    elif word == ".":
+        return {"type": OP_STORE, "loc": loc}
     else:
         try:
             return {"type": OP_PUSH, "value": int(word), "loc": loc}
@@ -86,7 +97,6 @@ def cross_reference_blocks(program):
             while_ip = stack.pop()
             program[ip]["jmp"] = while_ip
             stack.append(ip)
-    print(program)
     return program
 
 #--- Lexer ---
@@ -114,6 +124,7 @@ def load_program(file_path):
 
 def simulate_program(program):
     stack = []
+    mem = bytearray(MEM_CAPACITY)
     ip = 0
     while ip < len(program):
         op = program[ip]
@@ -161,8 +172,19 @@ def simulate_program(program):
             if a == 0:
                 assert len(op) >= 2, "`do` instruction..."
                 ip = op["jmp"]
+        elif op["type"] == OP_MEM:
+            stack.append(0)
+        elif op["type"] == OP_LOAD:
+            addr = stack.pop()
+            byte = mem[addr]
+            stack.append(byte)
+        elif op["type"] == OP_STORE:
+            value = stack.pop()
+            addr = stack.pop()
+            mem[addr] = value & 0xFF
         else:
             assert False, "unreachable"
+    print(mem[:10])
 
 def main():
     file_path = "foo.txt"
