@@ -1,4 +1,6 @@
-iota_counter=0
+import sys
+
+iota_counter = 0
 
 def iota(reset=False):
     global iota_counter
@@ -23,6 +25,8 @@ OP_DO = iota()
 OP_MEM = iota()
 OP_LOAD = iota()
 OP_STORE = iota()
+OP_SYSCALL1 = iota()
+OP_SYSCALL3 = iota()
 
 MEM_CAPACITY = 640000  # should be enough for everyone
 
@@ -59,6 +63,10 @@ def parse_token(token):
         return {"type": OP_LOAD, "loc": loc}
     elif word == ".":
         return {"type": OP_STORE, "loc": loc}
+    elif word == "syscall1":
+        return {"type": OP_SYSCALL1, "loc": loc}
+    elif word == "syscall3":
+        return {"type": OP_SYSCALL3, "loc": loc}
     else:
         try:
             return {"type": OP_PUSH, "value": int(word), "loc": loc}
@@ -149,13 +157,13 @@ def simulate_program(program):
         elif op["type"] == OP_IF:
             a = stack.pop()
             if a == 0:
-                assert len(op) >= 2, "`if` instruction expects a ´jmp´-Feld"
+                assert len(op) >= 2, "`if` instruction expects a ´jmp´ field"
                 ip = op["jmp"]
         elif op["type"] == OP_ELSE:
-            assert len(op) >= 2, "`else` instruction expects a ´jmp´-Feld"
+            assert len(op) >= 2, "`else` instruction expects a ´jmp´ field"
             ip = op["jmp"]
         elif op["type"] == OP_END:
-            assert len(op) >= 2, "`end` instruction expects a ´jmp´-Feld"
+            assert len(op) >= 2, "`end` instruction expects a ´jmp´ field"
             ip = op["jmp"]
         elif op["type"] == OP_DUP:
             a = stack.pop()
@@ -182,9 +190,28 @@ def simulate_program(program):
             value = stack.pop()
             addr = stack.pop()
             mem[addr] = value & 0xFF
+        elif op["type"] == OP_SYSCALL1:
+            assert False, "not implemented"
+        elif op["type"] == OP_SYSCALL3:
+            syscall_number = stack.pop()
+            arg1 = stack.pop()
+            arg2 = stack.pop()
+            arg3 = stack.pop()
+            if syscall_number == 1:
+                fd = arg1
+                buf = arg2
+                count = arg3
+                s = mem[buf:buf + count].decode("utf-8")
+                if fd == 1:
+                    print(s, end="")
+                elif fd == 2:
+                    print(s, end="", file=sys.stderr)
+                else:
+                    assert False, "unknown file descriptor %d" % fd
+            else:
+                assert False, "unknown syscall number %d" % syscall_number
         else:
             assert False, "unreachable"
-    print(mem[:10])
 
 def main():
     file_path = "foo.txt"
