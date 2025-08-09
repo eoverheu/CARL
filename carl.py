@@ -27,6 +27,8 @@ OP_LOAD = iota()
 OP_STORE = iota()
 OP_SYSCALL1 = iota()
 OP_SYSCALL3 = iota()
+OP_2DUP = iota()
+OP_DROP = iota()
 
 MEM_CAPACITY = 640000  # should be enough for everyone
 
@@ -67,6 +69,10 @@ def parse_token(token):
         return {"type": OP_SYSCALL1, "loc": loc}
     elif word == "syscall3":
         return {"type": OP_SYSCALL3, "loc": loc}
+    elif word == "2dup":
+        return {"type": OP_2DUP, "loc": loc}
+    elif word == "drop":
+        return {"type": OP_DROP, "loc": loc}
     else:
         try:
             return {"type": OP_PUSH, "value": int(word), "loc": loc}
@@ -210,11 +216,20 @@ def simulate_program(program):
                     assert False, "unknown file descriptor %d" % fd
             else:
                 assert False, "unknown syscall number %d" % syscall_number
+        elif op["type"] == OP_2DUP:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(b)
+            stack.append(a)
+            stack.append(b)
+            stack.append(a)
+        elif op["type"] == OP_DROP:
+            _ = stack.pop()
         else:
             assert False, "unreachable"
 
 def main():
-    file_path = "foo.txt"
+    file_path = "rule110.txt"
     program = load_program(file_path)
     simulate_program(program)
 
