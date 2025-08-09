@@ -29,6 +29,10 @@ OP_SYSCALL1 = iota()
 OP_SYSCALL3 = iota()
 OP_2DUP = iota()
 OP_DROP = iota()
+OP_SHR = iota()
+OP_SHL = iota()
+OP_BOR = iota()
+OP_BAND = iota()
 
 MEM_CAPACITY = 640000  # should be enough for everyone
 
@@ -73,6 +77,14 @@ def parse_token(token):
         return {"type": OP_2DUP, "loc": loc}
     elif word == "drop":
         return {"type": OP_DROP, "loc": loc}
+    elif word == "shr":
+        return {"type": OP_SHR, "loc": loc}
+    elif word == "shl":
+        return {"type": OP_SHL, "loc": loc}
+    elif word == "bor":
+        return {"type": OP_BOR, "loc": loc}
+    elif word == "band":
+        return {"type": OP_BAND, "loc": loc}
     else:
         try:
             return {"type": OP_PUSH, "value": int(word), "loc": loc}
@@ -225,11 +237,27 @@ def simulate_program(program):
             stack.append(a)
         elif op["type"] == OP_DROP:
             _ = stack.pop()
+        elif op["type"] == OP_SHR:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(int(b >> a))
+        elif op["type"] == OP_SHL:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(int(b << a))
+        elif op["type"] == OP_BOR:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(int(b | a))
+        elif op["type"] == OP_BAND:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(int(b & a))
         else:
             assert False, "unreachable"
 
 def main():
-    file_path = "rule110.txt"
+    file_path = "06-bitwise.txt"
     program = load_program(file_path)
     simulate_program(program)
 
